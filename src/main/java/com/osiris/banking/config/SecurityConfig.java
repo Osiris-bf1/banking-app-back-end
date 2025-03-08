@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,10 +35,24 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(
                         (request) ->
-                                request.requestMatchers("/**/auth", "/**/register")
-                                        .permitAll()
-                                        .anyRequest()
-                                        .authenticated()
+                        {
+                            try {
+                                http
+                                        .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/**/authenticate", "/**/register").permitAll()
+                                                .anyRequest().authenticated()
+                                        )
+                                        .securityContext(securityContext -> securityContext
+                                                .requireExplicitSave(false) // Désactive la gestion explicite du contexte de sécurité
+                                        )
+                                        .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Rend l'application stateless
+                                        )
+                                        .csrf(AbstractHttpConfigurer::disable);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore((Filter) jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

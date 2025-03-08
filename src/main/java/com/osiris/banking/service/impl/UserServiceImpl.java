@@ -18,7 +18,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -88,7 +90,10 @@ public class UserServiceImpl implements UserService {
         User user = UserDto.toEntity(dto);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         var savedUser =  userRepository.save(user);
-        String token = jwtUtils.generateToken(savedUser);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", savedUser.getId());
+        claims.put("fullName", savedUser.getFirstname()+ " " + savedUser.getLastname());
+        String token = jwtUtils.generateToken(savedUser, claims);
         return AuthenticationResponse.builder()
                 .token(token)
                 .build();
@@ -99,8 +104,11 @@ public class UserServiceImpl implements UserService {
         authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
-        final UserDetails user = userRepository.findByEmail(request.getEmail()).get();
-        final String token = jwtUtils.generateToken(user);
+        final User user = userRepository.findByEmail(request.getEmail()).get();
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        claims.put("fullName", user.getFirstname()+ " " + user.getLastname());
+        final String token = jwtUtils.generateToken(user, claims);
         return AuthenticationResponse.builder()
                 .token(token)
                 .build();

@@ -43,6 +43,10 @@ public class JwtUtils {
         return createToken(claims, userDetails);
     }
 
+    public String generateToken(UserDetails userDetails, Map<String, Object> claims) {
+        return createToken(claims, userDetails);
+    }
+
     public String createToken(Map<String, Object> claims, UserDetails userDetails) {
         return Jwts.builder().setClaims(claims)
                 .setSubject(userDetails.getUsername())
