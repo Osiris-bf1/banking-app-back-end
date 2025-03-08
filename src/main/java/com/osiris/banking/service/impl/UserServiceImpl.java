@@ -1,8 +1,10 @@
 package com.osiris.banking.service.impl;
 
+import com.osiris.banking.config.JwtUtils;
 import com.osiris.banking.dto.AccountDto;
+import com.osiris.banking.dto.AuthenticationRequest;
+import com.osiris.banking.dto.AuthenticationResponse;
 import com.osiris.banking.dto.UserDto;
-import com.osiris.banking.entity.Account;
 import com.osiris.banking.entity.User;
 import com.osiris.banking.repository.UserRepository;
 import com.osiris.banking.service.AccountService;
@@ -10,6 +12,10 @@ import com.osiris.banking.service.UserService;
 import com.osiris.banking.validators.ObjectsValidator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,11 +28,15 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final AccountService accountService;
     private final ObjectsValidator<UserDto> validator;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtils jwtUtils;
+    private final AuthenticationManager authManager;
 
     @Override
     public Long save(UserDto dto) {
         validator.validate(dto);
         User user = UserDto.toEntity(dto);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user).getId();
     }
 
@@ -70,5 +80,29 @@ public class UserServiceImpl implements UserService {
         user.setActive(false);
         userRepository.save(user);
         return user.getId();
+    }
+
+    @Override
+    public AuthenticationResponse register(UserDto dto) {
+        validator.validate(dto);
+        User user = UserDto.toEntity(dto);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        var savedUser =  userRepository.save(user);
+        String token = jwtUtils.generateToken(savedUser);
+        return AuthenticationResponse.builder()
+                .token(token)
+                .build();
+    }
+
+    @Override
+    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+        final UserDetails user = userRepository.findByEmail(request.getEmail()).get();
+        final String token = jwtUtils.generateToken(user);
+        return AuthenticationResponse.builder()
+                .token(token)
+                .build();
     }
 }
